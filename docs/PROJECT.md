@@ -7,8 +7,13 @@ and validate prices, order totals, and refund amounts in SHOP's Django services 
 back-office price editor). [cite: profile:purpose] [cite: source:product-note@r1]
 
 The library also ships `djmoney.contrib.exchange`, an optional app that fetches exchange rates from
-external providers (Open Exchange Rates and Fixer) and stores them in the service's own database so
-that money values can be converted between currencies. [cite: source:transcript-run-0ffa3540@r1]
+external providers and stores them in the service's own database so that money values can be converted
+between currencies. Three backends are provided: `OpenExchangeRatesBackend` (primary in production),
+`FixerBackend` (fallback), and `UniRateBackend` (present in code; whether SHOP uses it is unconfirmed
+— see OPEN_QUESTIONS.md Q4). [cite: source:transcript-run-0ffa3540@r1]
+[cite: djmoney/contrib/exchange/backends/openexchangerates.py]
+[cite: djmoney/contrib/exchange/backends/fixer.py]
+[cite: djmoney/contrib/exchange/backends/unirateapi.py]
 
 Direct consumers are backend Python engineers building or maintaining SHOP's Django services. The
 library is a fork of upstream django-money; SHOP takes it from a git tag rather than from PyPI.
@@ -23,8 +28,11 @@ library is a fork of upstream django-money; SHOP takes it from a git tag rather 
 Django 5.2 on Python 3.12. [cite: C:\acc26\r1\work\worktrees\run-0ffa3540\pyproject.toml]
 [cite: source:transcript-run-0ffa3540@r1]
 
-**Core dependency:** `py-moneyed >= 2.0, < 3.1` supplies the `Money` and `Currency` types.
+**Core dependency:** `py-moneyed >= 2.0, < 3.1` (SHOP's `shop-py-moneyed` project) supplies `Money`
+and `Currency` types, the ISO 4217 currency table, arithmetic, rounding and allocation. This library
+extends `moneyed.Money` in `djmoney/money.py` with Django-aware formatting and `F`-expression support.
 [cite: C:\acc26\r1\work\worktrees\run-0ffa3540\pyproject.toml]
+[cite: djmoney/money.py]
 
 **Exchange optional dependency:** only `certifi` (TLS trust for outbound rate-fetch requests);
 all HTTP transport is done with the standard library. No other third-party library is introduced by
@@ -39,10 +47,13 @@ the exchange app. [cite: C:\acc26\r1\work\worktrees\run-0ffa3540\pyproject.toml]
 - Prices are stored in the currency they were set in; silent conversion on save is not allowed.
   [cite: source:product-note@r1]
 
-**Performance:** `get_rate()` caches results via Django's cache framework with a configurable timeout
-(default 600 s, controlled by `RATES_CACHE_TIMEOUT`).
+**Performance:** The code in `get_rate()` calls Django's cache (`cache.get` / `cache.set`) with a
+default timeout of 600 s (`RATES_CACHE_TIMEOUT`). Carol stated "No cache layer" in the interview,
+which may mean SHOP services configure a no-op Django cache backend. This is unresolved — see
+OPEN_QUESTIONS.md Q3 and Documents vs code Discrepancy 1.
 [cite: C:\acc26\r1\work\worktrees\run-0ffa3540\djmoney\settings.py]
 [cite: C:\acc26\r1\work\worktrees\run-0ffa3540\djmoney\contrib\exchange\models.py]
+[cite: source:transcript-run-0ffa3540@r1]
 
 ## Decisions so far (and why)
 
@@ -86,8 +97,8 @@ product owner approves before the platform tags the release. Upstream's PyPI and
 does not apply.
 [cite: source:how-we-release@r1]
 
-**Upcoming: allocation display in admin.** Once the underlying py-moneyed library gains allocation
-support, the admin will be extended to display allocations (split bills, refunds across order lines).
+**Upcoming: allocation display in admin.** Once shop-py-moneyed gains allocation support, the admin
+will be extended to display allocations (split bills, refunds across order lines).
 [cite: source:product-note@r1]
 
 ## Glossary
@@ -97,11 +108,11 @@ below note how each term maps to a library concept.
 
 | Term | Library concept |
 |---|---|
-| **Money** | `djmoney.money.Money` — an amount (`Decimal`) plus a `Currency`; never stored or passed without both parts. |
+| **Money** | `moneyed.Money` from shop-py-moneyed — an amount (`Decimal`) plus a `Currency`. `djmoney.money.Money` is django-money's subclass, adding Django-aware formatting and `F`-expression support. Never stored or passed without both parts. |
 | **Currency** | An ISO 4217 code; stored as a `CurrencyField` (a `CharField`) alongside every `MoneyField`. |
 | **Money field** | `djmoney.models.fields.MoneyField` — the pair of `DecimalField` (amount) + `CurrencyField` (currency) on a Django model. |
 | **Exchange rate** | A `Rate` ORM record: a `Decimal` value linked to an `ExchangeBackend` that records the base currency and last-update time. |
-| **Rate provider** | A `BaseExchangeBackend` subclass; `OpenExchangeRatesBackend` (primary) and `FixerBackend` (fallback) are shipped. |
+| **Rate provider** | A `BaseExchangeBackend` subclass; `OpenExchangeRatesBackend` (primary in production), `FixerBackend` (fallback), and `UniRateBackend` (in code; SHOP use unconfirmed) are shipped. |
 | **Conversion** | `convert_money(value, currency)` in `djmoney.contrib.exchange.models`; requires the exchange app to be in `INSTALLED_APPS`. |
-| **Display amount** | Not a first-class concept in this library; formatting is delegated to py-moneyed and locale tools. |
-| **Allocation** | Not yet implemented; planned once py-moneyed adds allocation support. |
+| **Display amount** | Not a first-class concept in this library; formatting is delegated to shop-py-moneyed's `format_money` and locale tools. |
+| **Allocation** | Not yet implemented; planned once shop-py-moneyed adds allocation support. |
