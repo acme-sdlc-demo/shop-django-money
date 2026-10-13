@@ -1,0 +1,66 @@
+# Written by the Agentic SDLC Platform from the Project's config; change it through the platform.
+# It runs exactly the platform's gate.
+name: sdlc-checks
+'on':
+  pull_request: {}
+  push:
+    branches:
+    - main
+permissions:
+  contents: read
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: 'install: python -m pip install -e ".[exchange]"'
+      run: python -m pip install -e ".[exchange]"
+    - name: 'install: python -m pip install "pytest>=8.2,<8.3" pytest-cov pytest-django
+        mixer "django-reversion>=4.0.0" "djangorestframework>=3.13.0"'
+      run: python -m pip install "pytest>=8.2,<8.3" pytest-cov pytest-django mixer
+        "django-reversion>=4.0.0" "djangorestframework>=3.13.0"
+    - name: 'install: python -m pip install "black==25.1.0" "isort==5.10.1" "flake8==7.3.0"
+        ruff'
+      run: python -m pip install "black==25.1.0" "isort==5.10.1" "flake8==7.3.0" ruff
+    - name: python -m black --check djmoney tests
+      run: python -m black --check djmoney tests
+    - name: python -m isort --check-only --skip-glob "*.pyi" djmoney tests
+      run: python -m isort --check-only --skip-glob "*.pyi" djmoney tests
+    - name: python -m flake8 djmoney tests
+      run: python -m flake8 djmoney tests
+    - name: python -m pytest --ds=tests.settings_reversion
+      shell: bash
+      run: "set +e\nrm -rf .sdlc-reports\nexport PYTEST_ADDOPTS=--junitxml=.sdlc-reports/pytest.xml\n\
+        python -m pytest --ds=tests.settings_reversion --junitxml=.sdlc-reports/pytest.xml\n\
+        code=$?\npython3 -c 'import glob, json, sys, xml.etree.ElementTree as ET\n\
+        code, pattern, prefix, known = int(sys.argv[1]), sys.argv[2], sys.argv[3],\
+        \ set(json.loads(sys.argv[4]))\nfailed = set()\nfiles = [f for f in glob.glob(pattern,\
+        \ recursive=True) if f.endswith((\".xml\", \".trx\"))]\nif not files:\n  \
+        \  sys.exit(\"the command wrote no test report\")\nfor path in files:\n  \
+        \  for e in ET.parse(path).getroot().iter():\n        tag = e.tag.rsplit(\"\
+        }\", 1)[-1]\n        kids = {c.tag.rsplit(\"}\", 1)[-1] for c in e}\n    \
+        \    if tag == \"testcase\" and kids & {\"failure\", \"error\"}:\n       \
+        \     failed.add(prefix + (f\"{e.get('\"'\"'classname'\"'\"')}::{e.get('\"\
+        '\"'name'\"'\"')}\" if e.get(\"classname\") else e.get(\"name\")))\n     \
+        \   elif tag == \"UnitTestResult\" and e.get(\"outcome\") in (\"Failed\",\
+        \ \"Error\", \"Timeout\", \"Aborted\"):\n            failed.add(prefix + e.get(\"\
+        testName\"))\nnew = sorted(failed - known)\nif code and (new or not failed):\n\
+        \    sys.exit(f\"exited {code}; failing, and not known failures: {'\"'\"',\
+        \ '\"'\"'.join(new) or '\"'\"'(none named)'\"'\"'}\")\nprint(f\"known failures\
+        \ still failing: {'\"'\"', '\"'\"'.join(sorted(failed & known)) or '\"'\"\
+        'none'\"'\"'}\")\n' \"$code\" '.sdlc-reports/**/*' '' '[\"tests.migrations.test_migrations.TestMigrationFramework::test_add_field\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_alter_field\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_alter_field_callable\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_alter_field_currency_callable\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_alter_field_currency_choices_callable\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_create_initial\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_migrate_from_moneyfield\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_migrate_to_moneyfield\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_remove_field\"\
+        , \"tests.migrations.test_migrations.TestMigrationFramework::test_rename_field\"\
+        ]'\n"
