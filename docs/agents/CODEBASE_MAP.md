@@ -1,7 +1,7 @@
 # Codebase map: django-money
 
 ## Purpose
-SHOP's Django integration for money: `MoneyField` (a pair of Django model fields that stores an amount and its currency together), form fields, admin widgets, and an exchange-rate contrib app that fetches rates from Open Exchange Rates or Fixer and stores them in the database. It extends py-moneyed's `Money` type with Django formatting, queryset support and validation. Used by SHOP's checkout, refunds and back-office price-editor services. [cite: source:product-note@r1] [cite: pyproject.toml]
+SHOP's Django integration for money: `MoneyField` (a pair of Django model fields that stores an amount and its currency together), form fields, admin widgets, and an exchange-rate contrib app that fetches rates from Open Exchange Rates, Fixer or UniRate and stores them in the database. It extends py-moneyed's `Money` type with Django formatting, queryset support and validation. Used by SHOP's checkout, refunds and back-office price-editor services. [cite: source:product-note@r1] [cite: pyproject.toml]
 
 ---
 
@@ -22,9 +22,9 @@ SHOP's Django integration for money: `MoneyField` (a pair of Django model fields
 | `djmoney/contrib/exchange/models.py` | `ExchangeBackend`, `Rate` ORM models; `get_rate`, `_get_rate`, `convert_money` | `djmoney.settings` [cite: djmoney/contrib/exchange/models.py] |
 | `djmoney/contrib/exchange/exceptions.py` | `MissingRate` exception | — [cite: djmoney/contrib/exchange/models.py] |
 | `djmoney/contrib/exchange/backends/base.py` | `BaseExchangeBackend`, `SimpleExchangeBackend` | `certifi`, `django.db.transaction` [cite: djmoney/contrib/exchange/backends/base.py] |
-| `djmoney/contrib/exchange/backends/openexchangerates.py` | `OpenExchangeRatesBackend` | `djmoney.settings` [cite: djmoney/settings.py] |
-| `djmoney/contrib/exchange/backends/fixer.py` | `FixerBackend` | `djmoney.settings` [cite: djmoney/settings.py] |
-| `djmoney/contrib/exchange/backends/unirateapi.py` | `UniRateBackend` | `djmoney.settings` [cite: djmoney/settings.py] |
+| `djmoney/contrib/exchange/backends/openexchangerates.py` | `OpenExchangeRatesBackend` — fetches rates from openexchangerates.org | `djmoney.settings` [cite: djmoney/contrib/exchange/backends/openexchangerates.py] |
+| `djmoney/contrib/exchange/backends/fixer.py` | `FixerBackend` — fetches rates from fixer.io | `djmoney.settings` [cite: djmoney/contrib/exchange/backends/fixer.py] |
+| `djmoney/contrib/exchange/backends/unirateapi.py` | `UniRateBackend` — fetches rates from unirateapi.com | `djmoney.settings` [cite: djmoney/contrib/exchange/backends/unirateapi.py] |
 | `djmoney/contrib/exchange/management/commands/update_rates.py` | `update_rates` management command (scheduled in production) | exchange backends [cite: djmoney/contrib/exchange/management/commands/update_rates.py] |
 | `tests/settings.py` | Django settings for tests (SQLite, `djmoney.contrib.exchange`, `tests.testapp`) | — [cite: tests/settings.py] |
 | `tests/settings_reversion.py` | Gate settings — appends `reversion` to INSTALLED_APPS | `tests.settings` [cite: tests/settings_reversion.py] |
@@ -99,12 +99,14 @@ $python -m pytest --ds=tests.settings_reversion tests/test_money.py
 ## Connections
 
 ### Provides
-- `djmoney.money` (component): `Money` type — the shared money value object used by all SHOP Django services; paths: `djmoney/money.py` [cite: djmoney/money.py]
+- `djmoney.money` (component): django-money's `Money` subclass of `moneyed.Money`, with Django-aware formatting and `F`-expression support; paths: `djmoney/money.py` [cite: djmoney/money.py]
 - `djmoney.models.moneyfield` (component): `MoneyField` model field — stores price, total and refund amounts in SHOP service databases; paths: `djmoney/models/fields.py` [cite: djmoney/models/fields.py]
 - `djmoney.forms.moneyfield` (component): `MoneyField` form field + `MoneyWidget` — validates and renders money inputs in checkout and admin; paths: `djmoney/forms/fields.py`, `djmoney/forms/widgets.py` [cite: djmoney/forms/fields.py]
 - `djmoney.contrib.exchange` (component): exchange-rate storage and `convert_money`; paths: `djmoney/contrib/exchange/` [cite: djmoney/contrib/exchange/models.py]
-- `money` (business term): amount + currency, never bare Decimal; paths: `djmoney/money.py` [cite: source:product-note@r1]
 
 ### Uses
-- ? from unknown (py-moneyed project): `moneyed.Money`, `moneyed.Currency`, ISO 4217 currency table — base money type this package extends [cite: djmoney/money.py]
-- ? from unknown (py-moneyed project): `moneyed.l10n.format_money` — locale-aware display formatting [cite: djmoney/money.py]
+- `money.type` from shop-py-moneyed: `moneyed.Money`, `moneyed.Currency`, ISO 4217 currency table, arithmetic and rounding — base money type this package extends [cite: djmoney/money.py]
+- `money.formatting` from shop-py-moneyed: `moneyed.l10n.format_money` — locale-aware display formatting [cite: djmoney/money.py]
+- ? from openexchangerates.org: HTTP API for fetching live exchange rates (called by `OpenExchangeRatesBackend`) [cite: djmoney/contrib/exchange/backends/openexchangerates.py]
+- ? from fixer.io: HTTP API for fetching live exchange rates (called by `FixerBackend`) [cite: djmoney/contrib/exchange/backends/fixer.py]
+- ? from unirateapi.com: HTTP API for fetching live exchange rates (called by `UniRateBackend`) [cite: djmoney/contrib/exchange/backends/unirateapi.py]

@@ -8,7 +8,6 @@ Rules marked *enforced* are checked by the platform and fail the step if broken.
 - Install editable: `$python -m pip install -e .` (each Run has its own environment).
 - Never non-editable (`pip install .`): tests would test a stale copy.
 - Install pinned tool versions (from lock files, CI, `==` pins), not latest — output-comparing tests fail on version drift.
-- Never omit `--deselect`, `-k`, or `--ignore` from test runs (*enforced*: protect_tests).
 - Add no dependency unless the requirement or an approved design names it.
 - Quote all shell arguments with double quotes (`".[tests]"`): Windows cmd.exe keeps single quotes.
 - The platform's security check runs `$python -m ruff`; install `ruff` in every setup.
@@ -46,7 +45,7 @@ Rules marked *enforced* are checked by the platform and fail the step if broken.
   - `$python -m pytest --ds=tests.settings_reversion`
 - Tests live in `tests/`; every test function is named `test_*` [cite: tests/test_money.py].
 - To run tests for just one area: `$python -m pytest --ds=tests.settings_reversion tests/test_money.py`.
-- Never delete, skip, focus (`-k`) or weaken an existing test (*enforced*: protect_tests).
+- Never delete, skip, focus or weaken an existing test (*enforced*: protect_tests); never use `--deselect`, `-k` or `--ignore` to exclude tests.
 - Add tests beside existing ones for every behaviour you change.
 
 ## Boundaries
